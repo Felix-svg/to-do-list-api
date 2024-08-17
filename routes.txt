@@ -1,0 +1,2 @@
+/todos GET POST
+/todos/id GET PATCH DELETE
