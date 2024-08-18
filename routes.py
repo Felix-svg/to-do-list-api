@@ -13,6 +13,11 @@ from utils import (
 from config import db
 
 
+class Index(Resource):
+    def get(self):
+        return make_response({"message": "Home"}, 200)
+
+
 class Users(Resource):
     def get(self):
         try:
