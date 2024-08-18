@@ -1,5 +1,6 @@
 from config import db, bcrypt
 from sqlalchemy_serializer import SerializerMixin
+from flask_jwt_extended import create_access_token
 
 
 class User(db.Model, SerializerMixin):
@@ -13,13 +14,16 @@ class User(db.Model, SerializerMixin):
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
     # relationship to related todo
-    todos = db.relationship("Todo", back_populates="user")
+    todos = db.relationship("Todo", back_populates="user", cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
 
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
+    
+    def get_token(self, expires_in=3600):
+        return create_access_token(identity=self.id, expires_delta=expires_in)
 
     def __str__(self) -> str:
         return f"<{self.name} - {self.email}>"
@@ -40,3 +44,9 @@ class Todo(db.Model, SerializerMixin):
 
     def __str__(self) -> str:
         return f"<Todo {self.id}: {self.task} - Completed: {self.completed}>"
+
+
+class Tokenblocklist(db.Mode, SerializerMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    jti = db.column(db.String(36), nullable=False)
+    created_at = db.Column(db.Datetime, server_default=db.func.now())

@@ -1,5 +1,14 @@
-from config import app, api
+from config import app, api, jwt
 from routes import Todos, TodoByID, Users, UserByID, Index
+from models import Tokenblocklist
+
+
+@jwt.token_in_blocklist_loader
+def check_if_token_revoked(jwt_header, jwt_payload):
+    jti = jwt_payload["jti"]
+    token = Tokenblocklist.query.filter_by(jti=jti).first()
+    return token is not None
+
 
 # routes
 api.add_resource(Index, "/api/")
