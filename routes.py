@@ -126,6 +126,7 @@ class Todos(Resource):
         except Exception as e:
             return server_error(e)
 
+    @jwt_required()
     def post(self):
         try:
             data = request.get_json()
@@ -156,6 +157,7 @@ class TodoByID(Resource):
         except Exception as e:
             return server_error(e)
 
+    @jwt_required()
     def patch(self, id):
         try:
             todo = Todo.query.filter(Todo.id == id).first()
@@ -180,6 +182,7 @@ class TodoByID(Resource):
             db.session.rollback(e)
             return server_error()
 
+    @jwt_required()
     def delete(self, id):
         try:
             todo = Todo.query.filter(Todo.id == id).first()

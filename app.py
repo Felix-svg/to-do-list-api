@@ -1,5 +1,5 @@
 from config import app, api, jwt
-from routes import Todos, TodoByID, Users, UserByID, Index
+from routes import Todos, TodoByID, Users, UserByID, Index, Login, Logout
 from models import Tokenblocklist
 
 
@@ -16,6 +16,8 @@ api.add_resource(Users, "/api/users/")
 api.add_resource(UserByID, "/api/users/<int:id>/")
 api.add_resource(Todos, "/api/todos/")
 api.add_resource(TodoByID, "/api/todos/<int:id>/")
+api.add_resource(Login, "/api/login/")
+api.add_resource(Logout, "/api/logout/")
 
 
 if __name__ == "__main__":

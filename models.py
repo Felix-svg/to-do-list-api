@@ -46,7 +46,7 @@ class Todo(db.Model, SerializerMixin):
         return f"<Todo {self.id}: {self.task} - Completed: {self.completed}>"
 
 
-class Tokenblocklist(db.Mode, SerializerMixin):
+class Tokenblocklist(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
-    jti = db.column(db.String(36), nullable=False)
-    created_at = db.Column(db.Datetime, server_default=db.func.now())
+    jti = db.Column(db.String(36), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
