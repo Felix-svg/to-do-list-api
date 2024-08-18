@@ -1,6 +1,6 @@
 from flask import request, make_response
 from flask_restful import Resource
-from models import Todo, User
+from models import Todo, User, Tokenblocklist
 from utils import (
     server_error,
     no_input,
@@ -10,7 +10,13 @@ from utils import (
     updated,
     deleted,
 )
-from config import db
+from config import db, jwt
+from flask_jwt_extended import (
+    get_jwt,
+    jwt_required,
+    get_jwt_identity,
+)
+from datetime import timedelta, datetime, timezone
 
 
 class Index(Resource):
@@ -108,9 +114,14 @@ class UserByID(Resource):
 
 
 class Todos(Resource):
+    @jwt_required()
     def get(self):
         try:
-            todos = [todo.to_dict(rules=["-user"]) for todo in Todo.query.all()]
+            user_id = get_jwt_identity()
+            todos = [
+                todo.to_dict(rules=["-user"])
+                for todo in Todo.query.filter_by(user_id=user_id).all()
+            ]
             return make_response(todos, 200)
         except Exception as e:
             return server_error(e)
@@ -134,6 +145,7 @@ class Todos(Resource):
 
 
 class TodoByID(Resource):
+    @jwt_required()
     def get(self, id):
         try:
             todo = Todo.query.filter(Todo.id == id).first()
@@ -177,6 +189,44 @@ class TodoByID(Resource):
             db.session.delete(todo)
             db.session.commit()
             return deleted("Task")
+        except Exception as e:
+            db.session.rollback()
+            return server_error(e)
+
+
+class Login(Resource):
+    def post(self):
+        try:
+            data = request.get_json()
+            if not data:
+                return no_input()
+
+            email = data.get("email")
+            password = data.get("password")
+
+            if not email or not password:
+                return missing_required_fields()
+
+            user = User.query.filter_by(email=email).first()
+            if not user or not user.check_password(password):
+                return make_response({"message": "Invalid credentials"}, 401)
+
+            token = user.get_token(expires_in=timedelta(hours=1))
+            return make_response({"token": token}, 200)
+        except Exception as e:
+            db.session.rollback()
+            return server_error(e)
+
+
+class Logout(Resource):
+    @jwt_required()
+    def post(self):
+        try:
+            jti = get_jwt()["jti"]
+            token_block = Tokenblocklist(jti=jti, created_at=datetime.now(timezone.utc))
+            db.session.add(token_block)
+            db.session.commit()
+            return make_response({"messagge": "Successfully logged out"}, 200)
         except Exception as e:
             db.session.rollback()
             return server_error(e)
