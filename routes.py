@@ -25,13 +25,6 @@ class Index(Resource):
 
 
 class Users(Resource):
-    def get(self):
-        try:
-            users = [user.to_dict(only=("email", "name")) for user in User.query.all()]
-            return make_response(users, 200)
-        except Exception as e:
-            return server_error(e)
-
     def post(self):
         try:
             data = request.get_json()
@@ -45,7 +38,7 @@ class Users(Resource):
             if not name or not email or not password:
                 return missing_required_fields()
 
-            if User.query.filter(User.email == email).first():
+            if User.query.filter_by(email=email).first():
                 return make_response({"message": "Email already exists"}, 400)
 
             new_user = User(name=name, email=email)
@@ -59,10 +52,14 @@ class Users(Resource):
 
 
 class UserByID(Resource):
+    @jwt_required()
     def get(self, id):
         try:
-            # user = User.query.filter(User.id == id).first_or_404(description="User not found")
-            user = User.query.filter(User.id == id).first()
+            user_id = get_jwt_identity()
+            if id != user_id:
+                return not_found("User")
+
+            user = User.query.get(user_id)
             if not user:
                 return not_found("User")
 
@@ -71,9 +68,14 @@ class UserByID(Resource):
         except Exception as e:
             return server_error(e)
 
+    @jwt_required()
     def patch(self, id):
         try:
-            user = User.query.filter(User.id == id).first()
+            user_id = get_jwt_identity()
+            if id != user_id:
+                return not_found("User")
+
+            user = User.query.get(user_id)
             if not user:
                 return not_found("User")
 
@@ -85,11 +87,11 @@ class UserByID(Resource):
             email = data.get("email")
             password = data.get("password")
 
-            if name is not None:
+            if name:
                 user.name = name
-            if email is not None:
+            if email:
                 user.email = email
-            if password is not None:
+            if password:
                 user.set_password(password)
 
             db.session.commit()
@@ -98,10 +100,14 @@ class UserByID(Resource):
             db.session.rollback()
             return server_error(e)
 
+    @jwt_required()
     def delete(self, id):
         try:
+            user_id = get_jwt_identity()
+            if id != user_id:
+                return not_found("User")
 
-            user = User.query.filter(User.id == id).first()
+            user = User.query.get(user_id)
             if not user:
                 return not_found("User")
 
@@ -129,14 +135,16 @@ class Todos(Resource):
     @jwt_required()
     def post(self):
         try:
+            user_id = get_jwt_identity()
             data = request.get_json()
             if not data:
                 return no_input()
+
             task = data.get("task")
             if not task:
                 return missing_required_fields()
 
-            new_todo = Todo(task=task)
+            new_todo = Todo(task=task, user_id=user_id)
             db.session.add(new_todo)
             db.session.commit()
             return created("Task")
@@ -149,7 +157,8 @@ class TodoByID(Resource):
     @jwt_required()
     def get(self, id):
         try:
-            todo = Todo.query.filter(Todo.id == id).first()
+            user_id = get_jwt_identity()
+            todo = Todo.query.filter_by(id=id, user_id=user_id).first()
             if not todo:
                 return not_found("Task")
             todo_dict = todo.to_dict(rules=["-user"])
@@ -160,7 +169,8 @@ class TodoByID(Resource):
     @jwt_required()
     def patch(self, id):
         try:
-            todo = Todo.query.filter(Todo.id == id).first()
+            user_id = get_jwt_identity()
+            todo = Todo.query.filter_by(id=id, user_id=user_id).first()
             if not todo:
                 return not_found("Task")
 
@@ -170,22 +180,22 @@ class TodoByID(Resource):
 
             task = data.get("task")
             completed = data.get("completed")
-            if task is not None:
+            if task:
                 todo.task = task
-
             if completed is not None:
                 todo.completed = completed
 
             db.session.commit()
             return updated("Task")
         except Exception as e:
-            db.session.rollback(e)
-            return server_error()
+            db.session.rollback()
+            return server_error(e)
 
     @jwt_required()
     def delete(self, id):
         try:
-            todo = Todo.query.filter(Todo.id == id).first()
+            user_id = get_jwt_identity()
+            todo = Todo.query.filter_by(id=id, user_id=user_id).first()
             if not todo:
                 return not_found("Task")
 
@@ -229,7 +239,7 @@ class Logout(Resource):
             token_block = Tokenblocklist(jti=jti, created_at=datetime.now(timezone.utc))
             db.session.add(token_block)
             db.session.commit()
-            return make_response({"messagge": "Successfully logged out"}, 200)
+            return make_response({"message": "Successfully logged out"}, 200)
         except Exception as e:
             db.session.rollback()
             return server_error(e)
